@@ -2,7 +2,7 @@ import { DEFAULT_REFILL_DAYS, OTHER } from '../config.js';
 import { recordDispense } from '../supabase.js';
 import { altLabels } from '../lib/catalog.js';
 import { esc, notify, opts, toggle, withBusy } from '../lib/dom.js';
-import { today } from '../lib/dates.js';
+import { today } from '../lib/date.js';
 import { medLine } from '../lib/status.js';
 import { createMedicationPicker } from './medication-picker.js';
 import { readShortTerm, setShortTermRequired, shortTermFields } from './short-term-fields.js';

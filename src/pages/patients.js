@@ -1,6 +1,6 @@
 import { CONDITIONS } from '../config.js';
 import { listPatients } from '../supabase.js';
-import { ageFrom } from '../lib/dates.js';
+import { ageFrom } from '../lib/date.js';
 import { $, esc, opts, showLoadError } from '../lib/dom.js';
 
 // Patient list: count per condition, search, condition filter, and a link to each patient.

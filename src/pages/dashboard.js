@@ -2,7 +2,7 @@ import { CONDITIONS, STATUSES } from '../config.js';
 import { countSubstitutionsSince, listCatalog, listPatients } from '../supabase.js';
 import { openDispenseModal } from '../components/dispense-modal.js';
 import { catalogMedNames } from '../lib/catalog.js';
-import { fmt, today, ageFrom } from '../lib/dates.js';
+import { fmt, today, ageFrom } from '../lib/date.js';
 import { $, esc, opts, showLoadError } from '../lib/dom.js';
 import { dueInfo, medLine, medNames, shortTermActive, shortTermEnd } from '../lib/status.js';
 

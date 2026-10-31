@@ -2,7 +2,7 @@ import { CONDITIONS, DEFAULT_REFILL_DAYS, OTHER, SEX } from '../config.js';
 import { createPatient, listCatalog } from '../supabase.js';
 import { createMedicationPicker } from '../components/medication-picker.js';
 import { altLabels } from '../lib/catalog.js';
-import { today } from '../lib/dates.js';
+import { today } from '../lib/date.js';
 import { notify, opts, showLoadError, toggle, withBusy } from '../lib/dom.js';
 
 // Add patient. The Medication section is optional (hidden until "Dispense medication" is clicked).

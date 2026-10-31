@@ -4,15 +4,15 @@
 //   - shows the login screen, or the page that matches the address (#/dashboard ...)
 // Each page lives in src/pages/ and exports render(view, { params, go }).
 // =====================================================================
-import './styles.css';
+import './style.css';
 import { getSession, isConfigured, onAuthChange, signOut } from './supabase.js';
 import { renderShell } from './components/layout.js';
 import { renderLogin } from './pages/login.js';
 import { render as dashboard } from './pages/dashboard.js';
 import { render as patients } from './pages/patients.js';
 import { render as addPatient } from './pages/add-patient.js';
-import { render as patientDetail } from './pages/patient-detail.js';
-import { render as medications } from './pages/medications.js';
+import { render as patientDetail } from './pages/patient-details.js';
+import { render as medications } from './pages/medication.js';
 import { showLoadError } from './lib/dom.js';
 
 const app = document.getElementById('app');
