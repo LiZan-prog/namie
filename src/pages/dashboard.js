@@ -5,6 +5,7 @@ import { catalogMedNames } from '../lib/catalog.js';
 import { fmt, today, ageFrom } from '../lib/date.js';
 import { $, esc, opts, showLoadError } from '../lib/dom.js';
 import { dueInfo, medLine, medNames, shortTermActive, shortTermEnd } from '../lib/status.js';
+import { patientConditions } from '../lib/patient.js';
 
 // Dashboard: who is due for a refill, sorted by the nearest due date.
 export async function render(view) {
@@ -13,7 +14,123 @@ export async function render(view) {
     async function load() {
         const monthStart = today().slice(0, 7) + '-01';
             const [patients, catalog, subs] = await Promise.all([listPatients(), listCatalog(), countSubstitutionsSince(monthStart)]);
-                s.patients = patients;
+         import { CONDITIONS, STATUSES } from '../config.js';
+import { countSubstitutionsSince, listCatalog, listPatients } from '../supabase.js';
+import { openDispenseModal } from '../components/dispense-modal.js';
+import { catalogMedNames } from '../lib/catalog.js';
+import { fmt, today, ageFrom } from '../lib/dates.js';
+import { $, esc, opts, showLoadError } from '../lib/dom.js';
+import { conditionsOf, dueInfo, medLine, medNames, shortTermActive, shortTermEnd } from '../lib/status.js';
+
+// Dashboard: who is due for a refill, sorted by the nearest due date.
+export async function render(view) {
+  const s = { patients: [], catalog: {}, subs: 0, q: '', cond: 'All conditions', med: 'All medications', status: 'All statuses' };
+
+  async function load() {
+    const monthStart = today().slice(0, 7) + '-01';
+    const [patients, catalog, subs] = await Promise.all([listPatients(), listCatalog(), countSubstitutionsSince(monthStart)]);
+    s.patients = patients;
+    s.catalog = catalog;
+    s.subs = subs;
+  }
+
+  function metrics() {
+    const t = today();
+    let overdue = 0, week = 0, given = 0;
+    s.patients.forEach((p) => {
+      const i = dueInfo(p);
+      if (i.diff < 0) overdue++;
+      else if (i.diff <= 7) week++;
+      if (p.last_given === t) given++;
+    });
+    return { overdue, week, given };
+  }
+
+  function filtered() {
+    return s.patients
+      .filter((p) => {
+        const i = dueInfo(p);
+        if (s.q && !p.name.toLowerCase().includes(s.q.toLowerCase())) return false;
+        if (s.cond !== 'All conditions' && !conditionsOf(p).includes(s.cond)) return false;
+        if (s.med !== 'All medications' && !medNames(p).includes(s.med)) return false;
+        if (s.status === 'Overdue' && i.kind !== 'overdue') return false;
+        if (s.status === 'Substituted' && !p.alt_medication) return false;
+        if (s.status === 'Due within 7 days' && !(i.diff >= 0 && i.diff <= 7)) return false;
+        if (s.status === 'On track' && i.kind !== 'ok') return false;
+        return true;
+      })
+      .sort((a, b) => dueInfo(a).diff - dueInfo(b).diff);
+  }
+
+  function medCell(p) {
+    const lines = p.alt_medication
+      ? `<div>${esc(p.alt_medication)}</div><div class="sub">${esc(p.alt_reason)}</div>${p.medications.slice(1).map((m) => `<div>${esc(medLine(m))}</div>`).join('')}`
+      : p.medications.length
+        ? p.medications.map((m) => `<div>${esc(medLine(m))}</div>`).join('')
+        : '<span class="sub">—</span>';
+    const short = p.shortTerm.filter(shortTermActive)
+      .map((t) => `<div class="sub">Short-term: ${esc(medLine(t))} for ${esc(t.condition)}, until ${fmt(shortTermEnd(t))}</div>`).join('');
+    return lines + short;
+  }
+
+  function drawResults() {
+    const rows = filtered();
+    $('#results', view).innerHTML = `<div class="tw"><table class="rt rt-d"><thead><tr><th>Patient</th><th>Condition</th><th>Medication given</th><th>Last given</th><th>Next due</th><th>Status</th><th style="text-align:right">Action</th></tr></thead><tbody>
+      ${rows.length ? rows.map((p) => {
+        const i = dueInfo(p);
+        const age = ageFrom(p.dob);
+        return `<tr><td><b><a class="lnk" href="#/patients/${esc(p.id)}">${esc(p.name)}</a></b><div class="sub">${esc(p.pid)}${p.sex ? ' · ' + esc(p.sex) : ''}${age !== null ? ' · ' + age + ' yrs' : ''}</div></td>
+          <td>${conditionsOf(p).map((c) => `<div>${esc(c)}</div>`).join('')}</td><td>${medCell(p)}</td><td>${fmt(p.last_given)}</td><td>${fmt(i.nextDue)}</td>
+          <td>${i.kind === 'ok' || i.kind === 'none' ? `<span class="sub">${esc(i.label)}</span>` : `<span class="pill ${i.kind === 'overdue' ? 'od' : ''}">${esc(i.label)}</span>`}</td>
+          <td style="text-align:right"><button class="btn p sm" data-dispense="${esc(p.id)}">Dispense</button></td></tr>`;
+      }).join('') : `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--mut)">${s.patients.length ? 'No patients match the selected criteria.' : 'No patients yet. Use “+ Add patient” to register the first one.'}</td></tr>`}
+      </tbody></table></div>`;
+  }
+
+  function draw() {
+    const m = metrics();
+    const conds = ['All conditions', ...new Set([...CONDITIONS, ...s.patients.flatMap(conditionsOf)])];
+    const meds = ['All medications', ...new Set([...catalogMedNames(s.catalog), ...s.patients.flatMap(medNames)])];
+    view.innerHTML = `
+      <div class="top"><h2>Dashboard</h2><a class="btn p" href="#/patients/new">+ Add patient</a></div>
+      <div class="grid stats">
+        <div class="box stat"><p>Overdue</p><b>${m.overdue}</b></div>
+        <div class="box stat"><p>Due this week</p><b>${m.week}</b></div>
+        <div class="box stat"><p>Given today</p><b>${m.given}</b></div>
+        <div class="box stat"><p>Substitutions this month</p><b>${s.subs}</b></div>
+      </div>
+      <div class="grid filters">
+        <input id="q" placeholder="Search by patient name" value="${esc(s.q)}">
+        <select id="fc">${opts(conds, s.cond)}</select>
+        <select id="fm">${opts(meds, s.med)}</select>
+        <select id="fs">${opts(STATUSES, s.status)}</select>
+      </div>
+      <div id="results"></div>`;
+    drawResults();
+  }
+
+  view.addEventListener('input', (e) => {
+    if (e.target.id === 'q') { s.q = e.target.value; drawResults(); }
+  });
+  view.addEventListener('change', (e) => {
+    const map = { fc: 'cond', fm: 'med', fs: 'status' };
+    if (map[e.target.id]) { s[map[e.target.id]] = e.target.value; drawResults(); }
+  });
+  view.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-dispense]');
+    if (!btn) return;
+    const patient = s.patients.find((p) => p.id === btn.dataset.dispense);
+    if (patient) openDispenseModal({ host: view, patient, catalog: s.catalog, onDone: async () => { await load(); draw(); } });
+  });
+
+  try {
+    await load();
+    draw();
+  } catch (err) {
+    showLoadError(view, err);
+  }
+}
+       s.patients = patients;
                     s.catalog = catalog;
                         s.subs = subs;
                           }
@@ -35,7 +152,7 @@ export async function render(view) {
                                                                                       .filter((p) => {
                                                                                               const i = dueInfo(p);
                                                                                                       if (s.q && !p.name.toLowerCase().includes(s.q.toLowerCase())) return false;
-                                                                                                              if (s.cond !== 'All conditions' && p.condition !== s.cond) return false;
+                                                                                                              if (s.cond !== 'All conditions' && !patientConditions(p).includes(s.cond)) return false;
                                                                                                                       if (s.med !== 'All medications' && !medNames(p).includes(s.med)) return false;
                                                                                                                               if (s.status === 'Overdue' && i.kind !== 'overdue') return false;
                                                                                                                                       if (s.status === 'Substituted' && !p.alt_medication) return false;
@@ -64,7 +181,7 @@ export async function render(view) {
                                                                                                                                                                                                                                                       const i = dueInfo(p);
                                                                                                                                                                                                                                                               const age = ageFrom(p.dob);
                                                                                                                                                                                                                                                                       return `<tr><td><b><a class="lnk" href="#/patients/${esc(p.id)}">${esc(p.name)}</a></b><div class="sub">${esc(p.pid)}${p.sex ? ' · ' + esc(p.sex) : ''}${age !== null ? ' · ' + age + ' yrs' : ''}</div></td>
-                                                                                                                                                                                                                                                                                <td>${esc(p.condition)}</td><td>${medCell(p)}</td><td>${fmt(p.last_given)}</td><td>${fmt(i.nextDue)}</td>
+                                                                                                                                                                                                                                                                                <td><div class="condition-list">${patientConditions(p).map((condition) => `<span class="pill">${esc(condition)}</span>`).join(' ') || '—'}</div></td><td>${medCell(p)}</td><td>${fmt(p.last_given)}</td><td>${fmt(i.nextDue)}</td>
                                                                                                                                                                                                                                                                                           <td>${i.kind === 'ok' || i.kind === 'none' ? `<span class="sub">${esc(i.label)}</span>` : `<span class="pill ${i.kind === 'overdue' ? 'od' : ''}">${esc(i.label)}</span>`}</td>
                                                                                                                                                                                                                                                                                                     <td style="text-align:right"><button class="btn p sm" data-dispense="${esc(p.id)}">Dispense</button></td></tr>`;
                                                                                                                                                                                                                                                                                                           }).join('') : `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--mut)">${s.patients.length ? 'No patients match the selected criteria.' : 'No patients yet. Use “+ Add patient” to register the first one.'}</td></tr>`}
@@ -73,7 +190,7 @@ export async function render(view) {
 
                                                                                                                                                                                                                                                                                                                     function draw() {
                                                                                                                                                                                                                                                                                                                         const m = metrics();
-                                                                                                                                                                                                                                                                                                                            const conds = ['All conditions', ...new Set([...CONDITIONS, ...s.patients.map((p) => p.condition)])];
+                                                                                                                                                                                                                                                                                                                            const conds = ['All conditions', ...new Set([...CONDITIONS, ...s.patients.flatMap(patientConditions)])];
                                                                                                                                                                                                                                                                                                                                 const meds = ['All medications', ...new Set([...catalogMedNames(s.catalog), ...s.patients.flatMap(medNames)])];
                                                                                                                                                                                                                                                                                                                                     view.innerHTML = `
                                                                                                                                                                                                                                                                                                                                           <div class="top"><h2>Dashboard</h2><a class="btn p" href="#/patients/new">+ Add patient</a></div>

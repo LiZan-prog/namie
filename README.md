@@ -29,6 +29,8 @@ src/
 supabase/
   schema.sql            tables + starting medication list (run first)
   policies.sql          security rules (run second)
+
+For an existing Supabase database, run `supabase/migrations/20261102000000_patient_conditions.sql` in the SQL Editor before using this version. It adds and backfills the patient `conditions` array while retaining the legacy `condition` column.
 Troubleshooting in one minute
 Press F12 in the browser and open the Console tab: errors are printed there.
 A red message at the bottom of the screen names the failing action, e.g. Saving patient: .... That text comes from src/supabase.js, so the function with that label is where to look.
