@@ -1,6 +1,6 @@
 import { CONDITIONS } from '../config.js';
 import { listPatients } from '../supabase.js';
-import { ageFrom } from '../lib/dates.js';
+import { ageFrom } from '../lib/date.js';
 import { conditionsOf } from '../lib/status.js';
 import { $, esc, opts, showLoadError } from '../lib/dom.js';
 

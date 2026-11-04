@@ -1,4 +1,4 @@
-import { addDays, dayNum, iso, today } from './dates.js';
+import { addDays, dayNum, iso, today } from './date.js';
 
 // Works out when a patient's next refill is due and how to label it.
 // Patients who have never been given medication sort to the bottom (diff 9999).

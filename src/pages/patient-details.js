@@ -6,7 +6,7 @@ import {
 import { openDispenseModal } from '../components/dispense-modal.js';
 import { createMedicationPicker } from '../components/medication-picker.js';
 import { readShortTerm, setShortTermRequired, shortTermFields } from '../components/short-term-fields.js';
-import { ageFrom, fmt, today } from '../lib/dates.js';
+import { ageFrom, fmt, today } from '../lib/date.js';
 import { $, esc, notify, opts, reportError, showLoadError, withBusy } from '../lib/dom.js';
 import { conditionsOf, dueInfo, medLine, shortTermActive, shortTermEnd } from '../lib/status.js';
 

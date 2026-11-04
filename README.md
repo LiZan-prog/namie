@@ -25,7 +25,7 @@ src/
     short-term-fields.js  fields for short-term treatments
     layout.js           header and menu
   lib/                  small helpers (no screens)
-    dates.js  status.js  catalog.js  dom.js
+    date.js  status.js  catalog.js  dom.js
 supabase/
   schema.sql            tables + starting medication list (run first)
   policies.sql          security rules (run second)
